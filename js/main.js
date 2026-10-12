@@ -58,12 +58,43 @@
     var id = a.dataset.spy;
     return { a: a, el: id === "top" ? document.querySelector(".hero") : document.getElementById(id) };
   }).filter(function (t) { return t.el; });
+  /* Шапка: прилипает и поджимается при прокрутке, а цвет — инверсия блока под ней (data-tone в разметке) */
+  var topbar = document.querySelector(".topbar");
+  var mnavEl = document.getElementById("mnav");
+  var toneEls = Array.prototype.slice.call(document.querySelectorAll("[data-tone]"));
+  var themeMeta = document.querySelector('meta[name="theme-color"]');
+  var THEME = { light: "#1E120E", dark: "#FFF6EC", accent: "#EF8458" }; // цвет строки браузера на телефоне
+  var barTone = "", barCompact = null, barMid = 0;
+  // середина шапки по высоте — меряем заранее, а не на каждом кадре (чтение размеров после правки стилей тормозит)
+  function measureBar() { if (topbar) { var r = topbar.getBoundingClientRect(); barMid = r.top + r.height / 2; } }
+  function updateBar(y) {
+    if (!topbar) return;
+    // сначала только читаем размеры блоков, потом меняем шапку — и только если что-то изменилось
+    var mid = barMid, tone = "light";
+    for (var i = 0; i < toneEls.length; i++) {
+      var b = toneEls[i].getBoundingClientRect();
+      if (b.top <= mid && b.bottom > mid) {
+        var t = toneEls[i].dataset.tone;
+        // панель первого экрана тёмная только на телефоне; на компьютере она прозрачная поверх карты
+        if (t === "panel") { if (window.innerWidth <= 960) tone = "dark"; } else tone = t;
+      }
+    }
+    var compact = y > 40;
+    if (compact !== barCompact) { barCompact = compact; topbar.classList.toggle("is-compact", compact); }
+    if (tone === barTone) return;
+    barTone = tone;
+    topbar.dataset.over = tone;
+    if (mnavEl) mnavEl.dataset.over = tone;
+    if (themeMeta) themeMeta.setAttribute("content", THEME[tone] || THEME.light);
+  }
+
   var totop = document.querySelector(".totop");
   var ring = totop && totop.querySelector(".totop__progress");
   var ticking = false;
   function onScroll() {
     ticking = false;
     var y = window.scrollY, vh = window.innerHeight, cur = null;
+    updateBar(y);
     spyTargets.forEach(function (t) { if (t.el.getBoundingClientRect().top <= vh * 0.4) cur = t.a; });
     if (cur !== activeLink) {
       if (activeLink) activeLink.classList.remove("is-active");
@@ -105,7 +136,10 @@
     else { stepTarget = k; spyTargets[k].el.scrollIntoView({ behavior: how, block: "start" }); }
   });
   window.addEventListener("scroll", function () { if (!ticking) { ticking = true; requestAnimationFrame(onScroll); } }, { passive: true });
-  window.addEventListener("resize", restPill);
+  window.addEventListener("resize", function () { measureBar(); restPill(); onScroll(); });
+  // шапка поджалась или расправилась — у пунктов другие отступы, «пилюлю» и середину шапки меряем заново
+  if (topbar) topbar.addEventListener("transitionend", function (e) { if (e.target === topbar && e.propertyName === "padding-left") { measureBar(); restPill(); } });
+  measureBar();
   onScroll();
 
   /* =========================================================

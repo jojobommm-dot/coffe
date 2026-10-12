@@ -95,7 +95,10 @@
 
 <header class="topbar">
   <a class="brand" href="#top" aria-label="Fastcup — на главную">
-    <img src="images/web/logo-light.png" alt="" width="44" height="44">
+    <span class="brand__logo" aria-hidden="true">
+      <img class="brand__logo-light" src="images/web/logo-light.png" alt="" width="44" height="44">
+      <img class="brand__logo-dark" src="images/web/logo-dark.png" alt="" width="44" height="44">
+    </span>
     <span>Fastcup</span>
   </a>
   <nav class="nav" aria-label="Разделы">
@@ -128,7 +131,7 @@
 <main id="main">
 
   <!-- 1. HERO: карта на весь экран -->
-  <section class="hero" aria-label="Кофейные автоматы Fastcup на карте Перми">
+  <section class="hero" data-tone="light" aria-label="Кофейные автоматы Fastcup на карте Перми">
     <div class="hero__map" id="map" role="region" aria-label="Карта автоматов Fastcup">
       <div class="map-fallback" id="mapFallback">
         <p>Здесь будет карта с нашими точками</p>
@@ -136,7 +139,7 @@
       <!-- карту, метки и кнопки создаёт js/omap.js -->
     </div>
 
-    <div class="hero__panel">
+    <div class="hero__panel" data-tone="panel">
       <h1 class="hero__title">Fastcup — кофе с собой за&nbsp;1&nbsp;минуту</h1>
       <p class="hero__lead">Сеть кофейных автоматов в Перми. Любой напиток за 100 ₽: свежий помол, горячий стакан и никакой очереди.</p>
 
@@ -167,7 +170,7 @@
   </section>
 
   <!-- Интерактив: стаканчик и взрыв кофе -->
-  <section class="beans" id="beans" aria-label="Свежемолотый кофе">
+  <section class="beans" id="beans" data-tone="dark" aria-label="Свежемолотый кофе">
     <div class="beans__text">
       <h2>Мелем зерно прямо в&nbsp;автомате</h2>
       <p>Каждый стакан начинается со свежего помола. Никаких растворимых смесей: только зерно, вода и молоко. Поэтому кофе из автомата Fastcup на вкус как из кофейни.</p>
@@ -207,7 +210,7 @@
   </section>
 
   <!-- 2. О бренде -->
-  <section class="about" id="about">
+  <section class="about" id="about" data-tone="light">
     <div class="about__inner">
       <div class="about__text">
         <h2>Мы делаем автоматы сами</h2>
@@ -227,7 +230,7 @@
   </section>
 
   <!-- 3. Как это работает -->
-  <section class="how" id="how">
+  <section class="how" id="how" data-tone="light">
     <div class="how__head">
       <h2>Как это работает</h2>
       <p class="section-lead">Три шага, и горячий кофе у вас в руках.</p>
@@ -276,7 +279,7 @@
   </section>
 
   <!-- 4. Меню -->
-  <section class="menu" id="menu">
+  <section class="menu" id="menu" data-tone="accent">
     <div class="menu__inner">
       <div class="menu__head">
         <h2>Меню</h2>
@@ -332,7 +335,7 @@
   </section>
 
   <!-- 5. B2B -->
-  <section class="b2b" id="b2b">
+  <section class="b2b" id="b2b" data-tone="light">
     <div class="b2b__head">
       <h2>Бизнесу</h2>
       <p class="section-lead">Поставим кофейный автомат к вам или привезём ингредиенты для вашего.</p>
@@ -375,7 +378,7 @@
   </section>
 
   <!-- FAQ -->
-  <section class="faq" id="faq">
+  <section class="faq" id="faq" data-tone="light">
     <div class="faq__inner">
       <h2>Частые вопросы</h2>
       <div class="faq__list">
@@ -404,7 +407,7 @@
   </section>
 
   <!-- 6. Контакты -->
-  <section class="contacts" id="contacts">
+  <section class="contacts" id="contacts" data-tone="dark">
     <div class="contacts__inner">
       <div class="contacts__info">
         <h2>Напишите нам</h2>
@@ -450,7 +453,7 @@
 
 </main>
 
-<footer class="footer">
+<footer class="footer" data-tone="dark">
   <img src="images/web/logo-light.png" alt="Fastcup" width="72" height="72" loading="lazy">
   <p>Fastcup — сеть кофейных автоматов самообслуживания в Перми. Кофе с собой за 100 ₽, аренда кофейных аппаратов и ингредиенты оптом.</p>
   <p class="footer__copy">© <span id="year">2026</span> Fastcup</p>

@@ -65,21 +65,83 @@ p { margin: 0; }
 .btn--ghost { background: rgba(255, 246, 236, .1); color: var(--foam); box-shadow: inset 0 0 0 1.5px rgba(255, 246, 236, .55); }
 .btn--ghost:hover { background: rgba(255, 246, 236, .2); }
 
-/* ---------- шапка ---------- */
+/* ---------- шапка ----------
+   Прилипает к верху: в начале страницы — широкая, при прокрутке поджимается (.is-compact).
+   Цвет — инверсия блока под ней (js/main.js ставит data-over по data-tone блока):
+   над светлым — тёмное стекло, над тёмным и над оранжевым «Меню» — кремовое.
+   Все цвета шапки и мобильного меню — переменные ниже, смена тона перетекает плавно. */
+.topbar, .mnav {
+  --bar-bg: rgba(30, 18, 14, .88);
+  --bar-fg: var(--foam);
+  --bar-muted: rgba(255, 246, 236, .8);
+  --bar-chip: rgba(255, 246, 236, .1);
+  --bar-chip-hover: rgba(255, 246, 236, .18);
+  --bar-line: rgba(255, 246, 236, .1);
+  --bar-shadow: 0 14px 34px -18px rgba(0, 0, 0, .55);
+  --logo-light: 1;
+}
+.topbar[data-over="dark"], .mnav[data-over="dark"] {
+  --bar-bg: rgba(255, 246, 236, .92);
+  --bar-fg: var(--ink);
+  --bar-muted: rgba(42, 26, 20, .7);
+  --bar-chip: rgba(42, 26, 20, .07);
+  --bar-chip-hover: rgba(42, 26, 20, .13);
+  --bar-line: rgba(255, 246, 236, .6);
+  --bar-shadow: 0 16px 36px -18px rgba(0, 0, 0, .6);
+  --logo-light: 0;
+}
+.topbar[data-over="accent"], .mnav[data-over="accent"] {
+  --bar-bg: rgba(255, 246, 236, .93);
+  --bar-fg: var(--ink);
+  --bar-muted: rgba(91, 42, 61, .78);
+  --bar-chip: rgba(201, 80, 90, .1);
+  --bar-chip-hover: rgba(201, 80, 90, .18);
+  --bar-line: rgba(255, 255, 255, .7);
+  --bar-shadow: 0 16px 36px -16px rgba(107, 46, 71, .55);
+  --logo-light: 0;
+}
 .topbar {
-  position: fixed; inset: 16px var(--gutter) auto; z-index: 50;
+  --bar-ease: cubic-bezier(.2, .8, .2, 1);
+  position: fixed; z-index: 50; top: 16px; left: var(--gutter); right: var(--gutter);
   display: flex; align-items: center; gap: 28px;
   padding: 10px 12px 10px 14px;
-  background: rgba(30, 18, 14, .72);
+  color: var(--bar-fg);
   backdrop-filter: blur(14px) saturate(1.3);
   -webkit-backdrop-filter: blur(14px) saturate(1.3);
-  border-radius: 999px; color: var(--foam);
+  border-radius: 999px;
+  transition: color .15s ease, top .45s var(--bar-ease), left .45s var(--bar-ease), right .45s var(--bar-ease), padding .45s var(--bar-ease);
 }
-.brand { display: flex; align-items: center; gap: 10px; text-decoration: none; }
-.brand span { font: 700 30px/1 var(--hand); }
+/* Фон шапки — два готовых слоя (тёмный и кремовый): смена тона — это их прозрачность.
+   Прозрачность анимирует видеокарта, без перерисовки, — прокрутка не тормозит. */
+.topbar::before, .topbar::after {
+  content: ""; position: absolute; inset: 0; z-index: -1; border-radius: inherit; pointer-events: none;
+  transition: opacity .4s ease; will-change: opacity;
+}
+.topbar::before { background: rgba(30, 18, 14, .88); box-shadow: 0 14px 34px -18px rgba(0, 0, 0, .55), inset 0 0 0 1px rgba(255, 246, 236, .1); }
+.topbar::after { background: rgba(255, 246, 236, .92); box-shadow: 0 16px 36px -18px rgba(0, 0, 0, .6), inset 0 0 0 1px rgba(255, 246, 236, .6); opacity: 0; }
+.topbar[data-over="dark"]::before, .topbar[data-over="accent"]::before { opacity: 0; }
+.topbar[data-over="dark"]::after, .topbar[data-over="accent"]::after { opacity: 1; }
+.topbar[data-over="accent"]::after { background: rgba(255, 246, 236, .95); box-shadow: 0 16px 36px -16px rgba(107, 46, 71, .55), inset 0 0 0 1px rgba(255, 255, 255, .7); }
+/* прокрутили: шапка прилипает выше, становится уже (не шире 1080px) и ниже */
+.topbar.is-compact {
+  top: 10px;
+  left: max(var(--gutter), calc(50% - 540px)); right: max(var(--gutter), calc(50% - 540px));
+  padding: 6px 8px 6px 10px; gap: 20px;
+}
+.brand { display: flex; align-items: center; gap: 10px; text-decoration: none; color: inherit; }
+.brand span:not(.brand__logo) { font: 700 30px/1 var(--hand); transition: font-size .45s var(--bar-ease); }
+.brand__logo { display: grid; width: 44px; height: 44px; transition: width .45s var(--bar-ease), height .45s var(--bar-ease); }
+.brand__logo img { grid-area: 1 / 1; width: 100%; height: 100%; transition: opacity .15s ease; }
+.brand__logo-light { opacity: var(--logo-light); }
+.brand__logo-dark { opacity: calc(1 - var(--logo-light)); }
+.is-compact .brand__logo { width: 36px; height: 36px; }
+.is-compact .brand span:not(.brand__logo) { font-size: 26px; }
 .nav { position: relative; display: flex; gap: 2px; margin-left: auto; font-size: 15px; }
-.nav a { position: relative; z-index: 1; padding: 9px 14px; border-radius: 999px; text-decoration: none; color: rgba(255,246,236,.82); transition: color .25s ease; }
-.nav a:hover, .nav a.is-active { color: #fff; }
+.nav a { position: relative; z-index: 1; padding: 9px 14px; border-radius: 999px; text-decoration: none; color: var(--bar-muted); transition: color .15s ease; }
+.nav a.is-active { color: var(--bar-fg); }
+/* пункт на оранжевой «пилюле» — всегда белый */
+.nav a:hover, .nav a:focus-visible, .nav.has-pill:not(:hover):not(:focus-within) a.is-active { color: #fff; }
+.is-compact .nav a { padding: 8px 13px; }
 .nav a::after { /* искра под пунктом */
   content: ""; position: absolute; left: 50%; bottom: 3px; width: 4px; height: 4px; border-radius: 50%;
   background: var(--apricot); transform: translateX(-50%) scale(0); transition: transform .25s ease;
@@ -93,21 +155,33 @@ p { margin: 0; }
 }
 .nav.has-pill .nav__pill { opacity: 1; }
 .nav.has-pill a.is-active::after { transform: translateX(-50%) scale(0); }
-.topbar__phone { text-decoration: none; font-weight: 600; font-size: 15px; padding: 10px 18px; border-radius: 999px; background: rgba(255,246,236,.1); white-space: nowrap; transition: background-color .2s, box-shadow .2s; }
-.topbar__phone:hover { background: rgba(255,246,236,.18); box-shadow: inset 0 0 0 1.5px var(--apricot); }
-.burger { display: none; margin-left: auto; width: 48px; height: 48px; border: 0; border-radius: 50%; background: rgba(255,246,236,.12); cursor: pointer; position: relative; }
-.burger span { position: absolute; left: 14px; right: 14px; height: 2px; background: var(--foam); transition: transform .2s; }
-.burger span:first-child { top: 19px; } .burger span:last-child { top: 27px; }
+.topbar__phone {
+  text-decoration: none; font-weight: 600; font-size: 15px; padding: 10px 18px; border-radius: 999px; white-space: nowrap;
+  color: inherit; background: var(--bar-chip); transition: background-color .15s, box-shadow .2s, padding .45s var(--bar-ease);
+}
+.topbar__phone:hover { background: var(--bar-chip-hover); box-shadow: inset 0 0 0 1.5px var(--apricot); }
+.is-compact .topbar__phone { padding: 9px 16px; }
+.burger {
+  display: none; margin-left: auto; width: 48px; height: 48px; border: 0; border-radius: 50%; cursor: pointer; position: relative;
+  background: var(--bar-chip); transition: background-color .15s, width .45s var(--bar-ease), height .45s var(--bar-ease);
+}
+.burger span { position: absolute; left: 14px; right: 14px; height: 2px; background: var(--bar-fg); transition: transform .2s, background-color .15s; }
+.burger span:first-child { top: calc(50% - 5px); } .burger span:last-child { top: calc(50% + 3px); }
 .burger[aria-expanded="true"] span:first-child { transform: translateY(4px) rotate(45deg); }
 .burger[aria-expanded="true"] span:last-child { transform: translateY(-4px) rotate(-45deg); }
+.is-compact .burger { width: 42px; height: 42px; }
 .mnav {
   position: fixed; inset: 84px 16px auto; z-index: 49;
   display: grid; gap: 4px; padding: 14px;
-  background: rgba(30, 18, 14, .94); border-radius: 22px; color: var(--foam);
+  background-color: var(--bar-bg); color: var(--bar-fg);
+  box-shadow: var(--bar-shadow), inset 0 0 0 1px var(--bar-line);
+  backdrop-filter: blur(14px) saturate(1.3); -webkit-backdrop-filter: blur(14px) saturate(1.3);
+  border-radius: 22px; transition: background-color .45s ease, color .45s ease, top .45s var(--bar-ease);
 }
 .mnav[hidden] { display: none; }
-.mnav a { padding: 14px 16px; text-decoration: none; font-size: 18px; border-radius: 12px; }
-.mnav a:hover { background: rgba(255,246,236,.08); }
+.mnav a { padding: 14px 16px; text-decoration: none; font-size: 18px; border-radius: 12px; color: inherit; }
+.mnav a:hover { background: var(--bar-chip); }
+@media (prefers-reduced-motion: reduce) { .topbar, .topbar::before, .topbar::after, .mnav, .brand__logo, .brand__logo img { transition: none; } }
 
 /* ---------- HERO с картой ---------- */
 /* первый экран не ниже окна, но растёт, если панель не помещается (низкие экраны, длинная карточка точки) */
@@ -437,7 +511,9 @@ p { margin: 0; }
 }
 @media (max-width: 720px) {
   body { font-size: 16px; }
-  .topbar { inset: 10px 12px auto; gap: 10px; }
+  .topbar, .topbar.is-compact { top: 10px; left: 12px; right: 12px; gap: 10px; }
+  .topbar.is-compact { top: 6px; padding: 5px 6px 5px 8px; }
+  .mnav { top: 76px; }
   .topbar__phone { display: none; }
   .burger { display: block; }
   .hero__title { font-size: 56px; }
