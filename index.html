@@ -27,6 +27,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Caveat:wght@500;700&family=Inter:wght@400;500;600;700&display=swap&subset=cyrillic" rel="stylesheet">
+  <link rel="stylesheet" href="css/omap.css">
   <link rel="stylesheet" href="css/style.css">
 
   <script type="application/ld+json">
@@ -132,17 +133,7 @@
       <div class="map-fallback" id="mapFallback">
         <p>Здесь будет карта с нашими точками</p>
       </div>
-      <!-- Своя офлайн-карта из плиток (tools/build_map.py); плитки и метки добавляет js/main.js -->
-      <div class="omap" id="omap">
-        <div class="omap__tiles" id="omapTiles"></div>
-      </div>
-      <div class="omap__markers" id="omapMarkers"></div>
-      <div class="omap__zoom">
-        <button type="button" data-zoom="in" aria-label="Приблизить карту">+</button>
-        <button type="button" data-zoom="out" aria-label="Отдалить карту">−</button>
-      </div>
-      <p class="omap__hint" id="omapHint" aria-hidden="true">Двигайте карту двумя пальцами</p>
-      <p class="omap__attr">Карта: © участники <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">OpenStreetMap</a></p>
+      <!-- карту, метки и кнопки создаёт js/omap.js -->
     </div>
 
     <div class="hero__panel">
@@ -467,6 +458,7 @@
 <script src="js/config.js"></script>
 <script src="js/points.js"></script>
 <script src="js/map-data.js"></script>
+<script src="js/omap.js"></script>
 <script src="js/beans-data.js"></script>
 <script src="js/main.js"></script>
 </body>
