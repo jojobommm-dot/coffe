@@ -1,0 +1,12 @@
+# Единые переносы строк для текстовых файлов (Windows/GitHub без лишних «изменений»)
+* text=auto eol=lf
+
+# Картинки и шрифты — двоичные, не сравнивать построчно
+*.jpg  binary
+*.jpeg binary
+*.png  binary
+*.webp binary
+*.gif  binary
+*.ico  binary
+*.woff binary
+*.woff2 binary

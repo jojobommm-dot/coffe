@@ -1,0 +1,23 @@
+# Скриншоты и черновики от Claude — не часть сайта
+Claude outputs/
+
+# Секреты и локальные настройки
+.env
+.env.*
+*.local
+
+# Личные настройки Claude Code (общие — .claude/settings.json — коммитим)
+.claude/settings.local.json
+
+# Зависимости и сборка (на будущее)
+node_modules/
+dist/
+build/
+
+# Системный мусор
+Thumbs.db
+desktop.ini
+.DS_Store
+*.log
+*.tmp
+~$*
