@@ -82,7 +82,8 @@
   onScroll();
 
   /* =========================================================
-     ЯНДЕКС КАРТА
+     КАРТА: своя офлайн-карта Перми из плиток (images/web/map/) + метки поверх.
+     Двигается мышкой (на телефоне двумя пальцами), не дальше границ города.
      ========================================================= */
   var nearestLabel = document.getElementById("nearestLabel");
   var nearestRoute = document.getElementById("nearestRoute");
@@ -110,8 +111,17 @@
   var me = null;          // координаты посетителя, если он разрешил геолокацию
   var order = POINTS.map(function (_, i) { return i; }); // порядок точек: ближайшие первыми
   var selected = -1;      // какая точка выбрана сейчас
-  var placemarks = [];
-  var map = null;
+  var MAP = window.FASTCUP_MAP;   // границы карты и сетка плиток, js/map-data.js
+  var mapEl = document.getElementById("map");
+  var plane = document.getElementById("omap");          // слой с плитками и метками: его размер = масштаб
+  var tileLayer = document.getElementById("omapTiles");
+  var tiles = {};          // уже добавленные плитки
+  var tilesLoaded = 0;
+  var pins = [];
+  var scale = 0, posX = 0, posY = 0; // пикселей на единицу карты и сдвиг слоя
+  var view = null;         // какие точки показали последний раз — чтобы перестроить при смене размера окна
+  var userMoved = false;   // посетитель сам двигал карту — тогда при смене размера окна не прыгаем
+  var MIN_SCALE = 0.45, MAX_SCALE = 3; // мельче не читаются подписи
 
   nearestLabel.textContent = count + " " + plural(count, "автомат", "автомата", "автоматов") + " в Перми · определяем, где вы";
 
@@ -130,20 +140,9 @@
     nearestRoute.href = routeUrl(me, p.coords);
     nearestRoute.hidden = false;
     nearestNext.hidden = count < 2;
-    placemarks.forEach(function (pm, k) {
-      var el = pm.getOverlaySync && pm.getOverlaySync();
-      var node = el && el.getLayoutSync && el.getLayoutSync() && el.getLayoutSync().getParentElement();
-      if (node) { var svg = node.querySelector(".fc-pin"); if (svg) svg.classList.toggle("is-selected", k === i); }
-    });
-    if (map && pan) {
-      var pts = me ? [me, p.coords] : [p.coords];
-      if (pts.length > 1) {
-        map.setBounds(ymaps.util.bounds.fromPoints(pts), { checkZoomRange: true, zoomMargin: panelMargin(), duration: 400 })
-          .then(function () { if (map.getZoom() > 16) map.setZoom(16); });
-      } else {
-        map.panTo(p.coords, { duration: 400 });
-      }
-    }
+    pins.forEach(function (b, k) { b.firstChild.classList.toggle("is-selected", k === i); });
+    // показать посетителя и точку вместе; без геолокации — просто подвинуть карту к точке
+    if (pins.length && pan) fit(me ? [me, p.coords] : [p.coords], !me);
   }
   nearestNext.addEventListener("click", function () {
     var pos = order.indexOf(selected);
@@ -157,15 +156,18 @@
     '<path d="M15 14h16l-2 16h-12z" fill="#fff"/><rect x="13.5" y="11" width="19" height="3.5" rx="1.5" fill="#fff"/>' +
     '<rect x="16.5" y="19" width="13" height="5" fill="#C9505A" opacity=".55"/></svg>';
 
-  function loadYmaps() {
-    return new Promise(function (resolve, reject) {
-      var s = document.createElement("script");
-      s.src = "https://api-maps.yandex.ru/2.1/?lang=ru_RU" + (CFG.yandexApiKey ? "&apikey=" + encodeURIComponent(CFG.yandexApiKey) : "");
-      s.async = true;
-      s.onload = function () { window.ymaps ? ymaps.ready(resolve) : reject(); };
-      s.onerror = reject;
-      document.head.appendChild(s);
-    });
+  // [широта, долгота] → единицы карты (та же проекция Меркатора, что в tools/build_map.py)
+  function merc(lat) { return Math.log(Math.tan(Math.PI / 4 + lat * Math.PI / 360)); }
+  function toXY(c) {
+    return [
+      (c[1] - MAP.west) / (MAP.east - MAP.west) * MAP.width,
+      (merc(MAP.north) - merc(c[0])) / (merc(MAP.north) - merc(MAP.south)) * MAP.height
+    ];
+  }
+  function putOnMap(el, c) {
+    var xy = toXY(c);
+    el.style.left = xy[0] / MAP.width * 100 + "%";
+    el.style.top = xy[1] / MAP.height * 100 + "%";
   }
 
   function panelMargin() {
@@ -175,39 +177,180 @@
     return [110, cupRight, 90, panel.getBoundingClientRect().right + 40];
   }
 
-  function initMap() {
-    map = new ymaps.Map("map", {
-      center: CFG.mapCenter, zoom: CFG.mapZoom,
-      controls: []
-    }, { suppressMapOpenBlock: true, yandexMapDisablePoiInteractivity: true });
+  function minScale() { return Math.max(mapEl.clientWidth / MAP.width, mapEl.clientHeight / MAP.height); }
 
-    map.controls.add("zoomControl", { size: "small", position: { right: 24, top: 110 } });
-    map.behaviors.disable("scrollZoom"); // не мешаем прокрутке страницы
-    if (isTouch) map.behaviors.disable("drag"); // на телефоне карта двигается двумя пальцами
+  /* Применить масштаб и сдвиг: карта всегда закрывает весь блок, за границы города не уводится */
+  function apply() {
+    var cw = mapEl.clientWidth, ch = mapEl.clientHeight;
+    scale = Math.min(MAX_SCALE, Math.max(scale, minScale()));
+    posX = Math.min(0, Math.max(cw - MAP.width * scale, posX));
+    posY = Math.min(0, Math.max(ch - MAP.height * scale, posY));
+    plane.style.width = MAP.width * scale + "px";
+    plane.style.height = MAP.height * scale + "px";
+    plane.style.transform = "translate(" + posX + "px," + posY + "px)";
+    loadTiles();
+  }
 
-    var PinLayout = ymaps.templateLayoutFactory.createClass(PIN_SVG);
-    var MeLayout = ymaps.templateLayoutFactory.createClass('<div class="fc-me"></div>');
+  /* Подгрузить плитки, которые видны на экране (с запасом в полплитки вокруг) */
+  function loadTiles() {
+    var pad = MAP.tile / 2;
+    var u0 = -posX / scale - pad, u1 = (mapEl.clientWidth - posX) / scale + pad;
+    var v0 = -posY / scale - pad, v1 = (mapEl.clientHeight - posY) / scale + pad;
+    for (var r = Math.max(0, Math.floor(v0 / MAP.tile)); r <= Math.min(MAP.rows - 1, Math.floor(v1 / MAP.tile)); r++) {
+      for (var c = Math.max(0, Math.floor(u0 / MAP.tile)); c <= Math.min(MAP.cols - 1, Math.floor(u1 / MAP.tile)); c++) {
+        if (tiles[c + "-" + r]) continue;
+        var img = new Image();
+        img.className = "omap__tile";
+        img.alt = "";
+        img.draggable = false;
+        img.decoding = "async";
+        var tw = Math.min(MAP.tile, MAP.width - c * MAP.tile), th = Math.min(MAP.tile, MAP.height - r * MAP.tile);
+        img.style.left = c * MAP.tile / MAP.width * 100 + "%";
+        img.style.top = r * MAP.tile / MAP.height * 100 + "%";
+        // +1px — чтобы между соседними плитками не просвечивали щели
+        img.style.width = "calc(" + tw / MAP.width * 100 + "% + 1px)";
+        img.style.height = "calc(" + th / MAP.height * 100 + "% + 1px)";
+        img.onload = function () { this.classList.add("is-loaded"); tilesLoaded++; };
+        img.onerror = function () { if (!tilesLoaded) mapFallback(); };
+        img.src = MAP.tiles.replace("{x}", c).replace("{y}", r);
+        tiles[c + "-" + r] = img;
+        tileLayer.appendChild(img);
+      }
+    }
+  }
 
-    var coll = new ymaps.GeoObjectCollection();
-    POINTS.forEach(function (p, i) {
-      var pm = new ymaps.Placemark(p.coords, {
-        hintContent: p.title,
-        balloonContent:
-          '<div class="fc-balloon"><b>' + esc(p.title) + '</b><span>' + esc(p.address) + '</span>' +
-          (p.hours ? '<span>' + esc(p.hours) + '</span>' : '') +
-          '<a href="' + routeUrl(me, p.coords) + '" target="_blank" rel="noopener">Маршрут в Яндекс Картах</a></div>'
-      }, {
-        iconLayout: PinLayout,
-        iconShape: { type: "Circle", coordinates: [0, -34], radius: 22 }
-      });
-      // клик по метке = выбрать эту точку в карточке слева
-      pm.events.add("click", function () { selectPoint(i, false); });
-      placemarks.push(pm);
-      coll.add(pm);
+  /* Показать точки pts в свободной от панели части карты.
+     keepScale — не менять масштаб, только сдвинуть. */
+  function fit(pts, keepScale) {
+    view = pts;
+    userMoved = false;
+    var cw = mapEl.clientWidth, ch = mapEl.clientHeight;
+    if (!cw || !ch) return;
+    var m = panelMargin();
+    var x0 = m[3], x1 = cw - m[1], y0 = m[0], y1 = ch - m[2];
+    if (x1 - x0 < 120) { x0 = 40; x1 = cw - 40; }
+    if (y1 - y0 < 120) { y0 = 40; y1 = ch - 40; }
+    var xy = pts.map(toXY);
+    var xs = xy.map(function (q) { return q[0]; }), ys = xy.map(function (q) { return q[1]; });
+    var bx0 = Math.min.apply(null, xs), bx1 = Math.max.apply(null, xs);
+    var by0 = Math.min.apply(null, ys), by1 = Math.max.apply(null, ys);
+    if (!(keepScale && scale)) {
+      scale = Math.min(2, (x1 - x0) / Math.max(bx1 - bx0, 1), (y1 - y0) / Math.max(by1 - by0, 1));
+      scale = Math.max(scale, MIN_SCALE, minScale());
+    }
+    posX = (x0 + x1) / 2 - (bx0 + bx1) / 2 * scale;
+    posY = (y0 + y1) / 2 - (by0 + by1) / 2 * scale;
+    apply();
+  }
+
+  /* Масштаб относительно точки (px, py) блока карты — она остаётся на месте */
+  function zoomAt(newScale, px, py) {
+    var s = Math.min(MAX_SCALE, Math.max(newScale, minScale()));
+    posX = px - (px - posX) * s / scale;
+    posY = py - (py - posY) * s / scale;
+    scale = s;
+    userMoved = true;
+    apply();
+  }
+
+  function initControls() {
+    /* Перетаскивание мышкой */
+    var drag = null, justDragged = false;
+    mapEl.addEventListener("pointerdown", function (e) {
+      if (e.pointerType === "touch" || e.button !== 0 || e.target.closest(".omap__zoom, .omap__attr")) return;
+      drag = { id: e.pointerId, x: e.clientX, y: e.clientY, px: posX, py: posY, moved: false };
     });
-    map.geoObjects.add(coll);
-    if (count > 1) map.setBounds(coll.getBounds(), { checkZoomRange: true, zoomMargin: panelMargin() });
-    else if (count === 1) map.setCenter(POINTS[0].coords, 15);
+    mapEl.addEventListener("pointermove", function (e) {
+      if (!drag || e.pointerId !== drag.id) return;
+      var dx = e.clientX - drag.x, dy = e.clientY - drag.y;
+      if (!drag.moved) {
+        if (Math.abs(dx) + Math.abs(dy) < 5) return; // короткое движение — это ещё клик по метке
+        drag.moved = true;
+        mapEl.setPointerCapture(drag.id);
+        mapEl.classList.add("is-dragging");
+      }
+      posX = drag.px + dx; posY = drag.py + dy;
+      userMoved = true;
+      apply();
+    });
+    function stop() {
+      if (drag && drag.moved) { justDragged = true; setTimeout(function () { justDragged = false; }, 0); }
+      drag = null;
+      mapEl.classList.remove("is-dragging");
+    }
+    mapEl.addEventListener("pointerup", stop);
+    mapEl.addEventListener("pointercancel", stop);
+    // отпускание кнопки над меткой после перетаскивания не должно её выбирать
+    mapEl.addEventListener("click", function (e) { if (justDragged) { e.stopPropagation(); e.preventDefault(); } }, true);
+
+    /* Телефон: одним пальцем листается страница, двумя — двигаем и масштабируем карту */
+    var pinch = null, hintTimer;
+    var hint = document.getElementById("omapHint");
+    function touchInfo(e) {
+      var r = mapEl.getBoundingClientRect(), a = e.touches[0], b = e.touches[1];
+      return { x: (a.clientX + b.clientX) / 2 - r.left, y: (a.clientY + b.clientY) / 2 - r.top,
+               d: Math.hypot(a.clientX - b.clientX, a.clientY - b.clientY) || 1 };
+    }
+    mapEl.addEventListener("touchstart", function (e) {
+      if (e.touches.length !== 2) return;
+      pinch = touchInfo(e);
+      pinch.s = scale; pinch.px = posX; pinch.py = posY;
+      mapEl.classList.add("is-dragging");
+      hint.classList.remove("is-visible");
+    }, { passive: true });
+    mapEl.addEventListener("touchmove", function (e) {
+      if (e.touches.length === 1 && !pinch) { // подсказываем, как двигать карту
+        hint.classList.add("is-visible");
+        clearTimeout(hintTimer);
+        hintTimer = setTimeout(function () { hint.classList.remove("is-visible"); }, 1500);
+        return;
+      }
+      if (e.touches.length !== 2 || !pinch) return;
+      e.preventDefault();
+      var t = touchInfo(e);
+      var s = Math.min(MAX_SCALE, Math.max(pinch.s * t.d / pinch.d, minScale()));
+      posX = t.x - (pinch.x - pinch.px) * s / pinch.s;
+      posY = t.y - (pinch.y - pinch.py) * s / pinch.s;
+      scale = s;
+      userMoved = true;
+      apply();
+    }, { passive: false });
+    mapEl.addEventListener("touchend", function (e) {
+      if (e.touches.length < 2 && pinch) { pinch = null; mapEl.classList.remove("is-dragging"); }
+    });
+
+    /* Кнопки «+» и «−»: масштаб вокруг середины свободной от панели части карты */
+    document.querySelectorAll(".omap__zoom button").forEach(function (btn) {
+      btn.addEventListener("click", function () {
+        var m = panelMargin(), cw = mapEl.clientWidth, ch = mapEl.clientHeight;
+        var cx = m[3] < cw - m[1] ? (m[3] + cw - m[1]) / 2 : cw / 2;
+        zoomAt(scale * (btn.dataset.zoom === "in" ? 1.6 : 1 / 1.6), cx, (m[0] + ch - m[2]) / 2);
+      });
+    });
+  }
+
+  function initMap() {
+    POINTS.forEach(function (p, i) {
+      var b = document.createElement("button");
+      b.type = "button";
+      b.className = "omap__pin";
+      b.title = p.title;
+      b.setAttribute("aria-label", p.title + ", " + p.address);
+      b.innerHTML = PIN_SVG;
+      putOnMap(b, p.coords);
+      // клик по метке = выбрать эту точку в карточке слева
+      b.addEventListener("click", function () { selectPoint(i, false); });
+      pins.push(b);
+      plane.appendChild(b);
+    });
+    fit(count ? POINTS.map(function (p) { return p.coords; }) : [CFG.mapCenter || [58.0105, 56.2294]], false);
+    requestAnimationFrame(function () { requestAnimationFrame(function () { plane.classList.add("is-ready"); }); });
+    initControls();
+    var resizeTimer;
+    window.addEventListener("resize", function () {
+      clearTimeout(resizeTimer);
+      resizeTimer = setTimeout(function () { if (userMoved) apply(); else { scale = 0; fit(view, false); } }, 150);
+    });
 
     function noGeo(msg) {
       if (count) selectPoint(0, false);
@@ -216,9 +359,6 @@
     if (!("geolocation" in navigator)) { noGeo("Нажмите на метку, чтобы выбрать точку"); return; }
     navigator.geolocation.getCurrentPosition(function (pos) {
       me = [pos.coords.latitude, pos.coords.longitude];
-      map.geoObjects.add(new ymaps.Placemark(me, { hintContent: "Вы здесь" }, {
-        iconLayout: MeLayout, iconShape: { type: "Circle", coordinates: [0, 0], radius: 12 }, zIndex: 1000
-      }));
       // сортируем точки по расстоянию от посетителя
       order.sort(function (a, b) { return distance(me, POINTS[a].coords) - distance(me, POINTS[b].coords); });
       if (!count) return;
@@ -227,6 +367,11 @@
         noGeo("Вы далеко от Перми, но наши автоматы ждут вас здесь");
         return;
       }
+      var dot = document.createElement("div");
+      dot.className = "omap__me fc-me";
+      dot.title = "Вы здесь";
+      putOnMap(dot, me);
+      plane.appendChild(dot);
       selectPoint(order[0], true);
     }, function () {
       noGeo("Разрешите геопозицию, и мы найдём ближайший автомат");
@@ -234,6 +379,9 @@
   }
 
   function mapFallback() {
+    if (!plane.isConnected) return; // несколько плиток могут не загрузиться — сообщаем один раз
+    plane.remove();
+    document.querySelectorAll(".omap__zoom, .omap__attr, .omap__hint").forEach(function (el) { el.remove(); });
     var fb = document.getElementById("mapFallback");
     fb.innerHTML = '<p>Карта не загрузилась.<br>Наши точки:</p>';
     var ul = document.createElement("ul");
@@ -247,10 +395,8 @@
     if (count) selectPoint(0, false);
   }
 
-  loadYmaps().then(function () {
-    document.getElementById("mapFallback").remove();
-    initMap();
-  }).catch(mapFallback);
+  if (!MAP) mapFallback();
+  else initMap();
 
   /* =========================================================
      СТАКАНЧИК: при наведении за ним «взрывается» кофе
