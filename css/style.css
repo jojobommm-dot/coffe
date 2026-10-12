@@ -110,7 +110,13 @@ p { margin: 0; }
 .mnav a:hover { background: rgba(255,246,236,.08); }
 
 /* ---------- HERO с картой ---------- */
-.hero { position: relative; height: 100vh; height: 100svh; min-height: 640px; overflow: hidden; background: var(--dusk-sky); color: var(--foam); }
+/* первый экран не ниже окна, но растёт, если панель не помещается (низкие экраны, длинная карточка точки) */
+.hero {
+  position: relative; overflow: hidden; background: var(--dusk-sky); color: var(--foam);
+  display: flex; align-items: center;
+  min-height: max(640px, 100vh); min-height: max(640px, 100svh);
+  padding: 120px var(--gutter) 90px;
+}
 .hero__map { position: absolute; inset: 0; }
 /* тёплый тон подложки Яндекс Карт (только земля, метки остаются яркими) */
 .hero__map [class*="ground-pane"] { filter: sepia(.42) saturate(1.15) hue-rotate(-14deg) brightness(.96) contrast(1.02); }
@@ -127,12 +133,7 @@ p { margin: 0; }
   content: ""; position: absolute; inset: 0; z-index: 1; pointer-events: none;
   background: linear-gradient(90deg, rgba(30,18,14,.88) 0%, rgba(30,18,14,.55) 34%, rgba(30,18,14,0) 62%);
 }
-.hero__panel {
-  position: absolute; z-index: 2;
-  left: var(--gutter); top: 50%; transform: translateY(-50%);
-  width: min(560px, calc(100% - 2 * var(--gutter)));
-  max-height: calc(100% - 140px); padding-top: 40px;
-}
+.hero__panel { position: relative; z-index: 2; width: min(560px, 100%); }
 .hero__title {
   font-family: var(--hand); font-weight: 700;
   font-size: clamp(56px, 6.6vw, 100px); line-height: .92;
@@ -431,20 +432,22 @@ p { margin: 0; }
   .steps { grid-template-columns: 1fr; gap: 64px; max-width: 420px; margin-left: auto; margin-right: auto; }
   .step:not(:last-child)::after { display: none; }
 }
+/* карта сверху, панель снизу: уже ~960px панель поверх карты закрывает почти всю карту */
+@media (max-width: 960px) {
+  .hero { min-height: 0; padding: 0; flex-direction: column; align-items: stretch; }
+  .hero__map { position: relative; height: 58svh; min-height: 360px; }
+  .hero::before { display: none; }
+  .hero__panel { width: auto; margin: -48px 12px 0; padding: 28px 22px 30px; background: var(--espresso); border-radius: 26px; z-index: 3; }
+  .hero__scroll { display: none; }
+}
 @media (max-width: 720px) {
   body { font-size: 16px; }
   .topbar { inset: 10px 12px auto; gap: 10px; }
   .topbar__phone { display: none; }
   .burger { display: block; }
-  /* карта сверху, панель снизу — чтобы на телефоне было видно и то и другое */
-  .hero { height: auto; min-height: 0; display: flex; flex-direction: column; }
-  .hero__map { position: relative; height: 58svh; min-height: 360px; }
-  .hero::before { display: none; }
-  .hero__panel { position: relative; left: auto; top: auto; transform: none; max-height: none; width: auto; margin: -48px 12px 0; padding: 28px 22px 30px; background: var(--espresso); border-radius: 26px; z-index: 3; }
   .hero__title { font-size: 56px; }
   .hero__lead { font-size: 17px; }
   .hero__actions .btn { width: 100%; }
-  .hero__scroll { display: none; }
   .about__machine { padding: 0; display: flex; flex-direction: column; align-items: center; }
   .about__machine img { max-width: 240px; }
   .note { position: static; width: auto; text-align: center !important; font-size: 25px; margin-top: 10px; }

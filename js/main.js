@@ -170,8 +170,9 @@
 
   function panelMargin() {
     var panel = document.querySelector(".hero__panel");
-    if (window.innerWidth <= 720) return [90, 40, 70, 40];
-    return [110, 300, 90, panel.getBoundingClientRect().right + 40];
+    if (window.innerWidth <= 960) return [90, 40, 70, 40];  // панель под картой (см. @media 960px в style.css)
+    var cupRight = window.innerWidth > 1080 ? 300 : 40;     // справа место под карточку стаканчика, если она видна
+    return [110, cupRight, 90, panel.getBoundingClientRect().right + 40];
   }
 
   function initMap() {
