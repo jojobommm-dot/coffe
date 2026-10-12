@@ -20,8 +20,8 @@ js/map-data.js      границы офлайн-карты — создаётс�
 js/beans-data.js    картинка зёрен в base64 (большой файл — не читай целиком без нужды)
 images/             исходники в полном размере — НЕ изменять и не удалять
 images/web/         сжатые версии для сайта — на странице используются только они
-images/web/map/     плитки офлайн-карты Перми — создаются tools/build_map.py, руками не править
-tools/build_map.py  рисует карту из OpenStreetMap: `python tools/build_map.py --refresh` (нужен shapely)
+images/web/map/     офлайн-карта Перми: картинки WebP {уровень}/{x}-{y}.webp — создаются tools/build_map.py, руками не править
+tools/build_map.py  рисует карту из OpenStreetMap: `python tools/build_map.py --refresh` (нужны shapely и playwright, рендерит Chrome)
 robots.txt, sitemap.xml
 ```
 

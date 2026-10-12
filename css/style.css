@@ -124,7 +124,8 @@ p { margin: 0; }
 /* will-change: слой отдаётся видеокарте — при перетаскивании плитки не перерисовываются */
 .omap { position: absolute; left: 0; top: 0; width: 100%; height: 100%; background: #F2E4CF; transform-origin: 0 0; will-change: transform; }
 .omap__markers { position: absolute; inset: 0; pointer-events: none; }
-.omap__tile { position: absolute; max-width: none; opacity: 0; transition: opacity .35s ease; pointer-events: none; }
+.omap__lvl { position: absolute; inset: 0; }
+.omap__tile { position: absolute; max-width: none; opacity: 0; transition: opacity .25s ease; pointer-events: none; }
 .omap__tile.is-loaded { opacity: 1; }
 .omap__zoom { position: absolute; z-index: 2; right: 24px; top: 110px; display: grid; gap: 6px; }
 .omap__zoom button {

@@ -82,7 +82,7 @@
   onScroll();
 
   /* =========================================================
-     КАРТА: своя офлайн-карта Перми из плиток (images/web/map/) + метки поверх.
+     КАРТА: своя офлайн-карта Перми из готовых картинок (images/web/map/{уровень}/) + метки поверх.
      Двигается мышкой (на телефоне двумя пальцами), не дальше границ города.
      ========================================================= */
   var nearestLabel = document.getElementById("nearestLabel");
@@ -116,7 +116,9 @@
   var plane = document.getElementById("omap");          // слой с плитками (двигает видеокарта через transform)
   var tileLayer = document.getElementById("omapTiles");
   var markerLayer = document.getElementById("omapMarkers"); // метки отдельным слоем — не раздуваются при зуме
-  var tiles = {};          // уже добавленные плитки
+  var tiles = {};          // уже добавленные картинки: tiles[уровень][ключ] = img
+  var levelEls = {};       // слой картинок каждого уровня
+  var level = -1, prevLevel = -1; // чёткий уровень сейчас и предыдущий (пока грузится новый, виден он)
   var tilesLoaded = 0;
   var pins = [];
   var markers = [];        // метки и «вы здесь»: { el, x, y } в единицах карты
@@ -212,7 +214,10 @@
     plane.style.width = MAP.width * scale + "px";
     plane.style.height = MAP.height * scale + "px";
   }
-  function settle() { if (baseScale !== scale) { commitScale(); render(); } }
+  function settle() {
+    if (baseScale !== scale) { commitScale(); render(); }
+    loadTiles(true);
+  }
 
   /* Обновить не чаще одного раза за кадр, сколько бы событий мыши ни пришло */
   function update() {
@@ -250,31 +255,72 @@
     }
   }
 
-  /* Подгрузить плитки, которые видны на экране (с запасом в полплитки вокруг) */
-  function loadTiles() {
-    var pad = MAP.tile / 2;
-    var u0 = -posX / scale - pad, u1 = (mapEl.clientWidth - posX) / scale + pad;
-    var v0 = -posY / scale - pad, v1 = (mapEl.clientHeight - posY) / scale + pad;
-    for (var r = Math.max(0, Math.floor(v0 / MAP.tile)); r <= Math.min(MAP.rows - 1, Math.floor(v1 / MAP.tile)); r++) {
-      for (var c = Math.max(0, Math.floor(u0 / MAP.tile)); c <= Math.min(MAP.cols - 1, Math.floor(u1 / MAP.tile)); c++) {
-        if (tiles[c + "-" + r]) continue;
+  /* Какой уровень картинок нужен: чтобы на пиксель экрана приходилось не меньше пикселя картинки */
+  function pickLevel() {
+    var need = baseScale * (window.devicePixelRatio || 1);
+    for (var z = 0; z < MAP.levels.length; z++) if (MAP.levels[z] >= need * 0.85) return z;
+    return MAP.levels.length - 1;
+  }
+
+  /* Подгрузить картинки, которые видны на экране. Уровень 0 (весь город, 9 картинок) — подложка,
+     поверх него чёткий уровень под текущий масштаб. prune — убрать картинки далеко за экраном. */
+  function loadTiles(prune) {
+    var want = pickLevel();
+    if (want !== level) {
+      if (level > 0) prevLevel = level;
+      level = want;
+      Object.keys(levelEls).forEach(function (z) { // лишние уровни убираем, чтобы не держать память
+        z = +z;
+        if (z !== 0 && z !== level && z !== prevLevel) { levelEls[z].remove(); delete levelEls[z]; delete tiles[z]; }
+        else levelEls[z].style.zIndex = z === level ? 10 : z; // текущий уровень сверху, прежний — подложкой под ним
+      });
+    }
+    loadLevel(0, false);
+    if (level > 0) loadLevel(level, prune);
+  }
+
+  function loadLevel(z, prune) {
+    var s = MAP.levels[z], T = MAP.tile, u = T / s;  // единиц карты на одну картинку
+    var cols = Math.ceil(MAP.width * s / T), rows = Math.ceil(MAP.height * s / T);
+    var u0 = -posX / scale - u / 2, u1 = (mapEl.clientWidth - posX) / scale + u / 2;
+    var v0 = -posY / scale - u / 2, v1 = (mapEl.clientHeight - posY) / scale + u / 2;
+    var c0 = Math.max(0, Math.floor(u0 / u)), c1 = Math.min(cols - 1, Math.floor(u1 / u));
+    var r0 = Math.max(0, Math.floor(v0 / u)), r1 = Math.min(rows - 1, Math.floor(v1 / u));
+    if (!levelEls[z]) {
+      levelEls[z] = document.createElement("div");
+      levelEls[z].className = "omap__lvl";
+      levelEls[z].style.zIndex = z === level ? 10 : z;
+      tileLayer.appendChild(levelEls[z]);
+      tiles[z] = {};
+    }
+    var have = tiles[z];
+    for (var r = r0; r <= r1; r++) {
+      for (var c = c0; c <= c1; c++) {
+        var key = c + "-" + r;
+        if (have[key]) continue;
         var img = new Image();
         img.className = "omap__tile";
         img.alt = "";
         img.draggable = false;
         img.decoding = "async";
-        var tw = Math.min(MAP.tile, MAP.width - c * MAP.tile), th = Math.min(MAP.tile, MAP.height - r * MAP.tile);
-        img.style.left = c * MAP.tile / MAP.width * 100 + "%";
-        img.style.top = r * MAP.tile / MAP.height * 100 + "%";
-        // +1px — чтобы между соседними плитками не просвечивали щели
+        var tw = Math.min(T, Math.ceil(MAP.width * s - c * T)) / s, th = Math.min(T, Math.ceil(MAP.height * s - r * T)) / s;
+        img.style.left = c * u / MAP.width * 100 + "%";
+        img.style.top = r * u / MAP.height * 100 + "%";
+        // +1px — чтобы между соседними картинками не просвечивали щели
         img.style.width = "calc(" + tw / MAP.width * 100 + "% + 1px)";
         img.style.height = "calc(" + th / MAP.height * 100 + "% + 1px)";
         img.onload = function () { this.classList.add("is-loaded"); tilesLoaded++; };
         img.onerror = function () { if (!tilesLoaded) mapFallback(); };
-        img.src = MAP.tiles.replace("{x}", c).replace("{y}", r);
-        tiles[c + "-" + r] = img;
-        tileLayer.appendChild(img);
+        img.src = MAP.tiles.replace("{z}", z).replace("{x}", c).replace("{y}", r);
+        have[key] = img;
+        levelEls[z].appendChild(img);
       }
+    }
+    if (prune && z > 0) {
+      Object.keys(have).forEach(function (key) {
+        var cr = key.split("-"), c = +cr[0], r = +cr[1];
+        if (c < c0 - 2 || c > c1 + 2 || r < r0 - 2 || r > r1 + 2) { have[key].remove(); delete have[key]; }
+      });
     }
   }
 
@@ -330,7 +376,7 @@
       update();
     });
     function stop() {
-      if (drag && drag.moved) { justDragged = true; setTimeout(function () { justDragged = false; }, 0); }
+      if (drag && drag.moved) { justDragged = true; setTimeout(function () { justDragged = false; }, 0); loadTiles(true); }
       drag = null;
       mapEl.classList.remove("is-dragging");
     }
