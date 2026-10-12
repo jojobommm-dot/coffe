@@ -22,3 +22,4 @@ desktop.ini
 *.tmp
 ~$*
 tools/osm-cache/
+__pycache__/
