@@ -66,7 +66,7 @@ p { margin: 0; }
 .btn--ghost:hover { background: rgba(255, 246, 236, .2); }
 
 /* ---------- шапка ----------
-   В начале страницы — плавающая капсула; при прокрутке прилипает к верху во всю ширину (.is-compact).
+   Всегда плавающая капсула (форма не меняется); при прокрутке (.is-compact) поднимается ближе к краю и получает тень.
    Цвет — инверсия блока под ней (js/main.js ставит data-over по data-tone блока):
    над светлым — тёмное стекло, над тёмным и над оранжевым «Меню» — кремовое.
    Все цвета шапки и мобильного меню — переменные ниже, смена тона перетекает плавно. */
@@ -109,8 +109,7 @@ p { margin: 0; }
   backdrop-filter: blur(14px) saturate(1.3);
   -webkit-backdrop-filter: blur(14px) saturate(1.3);
   border-radius: 32px;
-  transition: color .15s ease, top .45s var(--bar-ease), left .45s var(--bar-ease), right .45s var(--bar-ease),
-              padding .45s var(--bar-ease), border-radius .45s var(--bar-ease);
+  transition: color .15s ease, top .45s var(--bar-ease), padding .45s var(--bar-ease);
 }
 /* Фон шапки — два готовых слоя (тёмный и кремовый): смена тона — это их прозрачность.
    Прозрачность анимирует видеокарта, без перерисовки, — прокрутка не тормозит. */
@@ -123,15 +122,11 @@ p { margin: 0; }
 .topbar[data-over="dark"]::before, .topbar[data-over="accent"]::before { opacity: 0; }
 .topbar[data-over="dark"]::after, .topbar[data-over="accent"]::after { opacity: 1; }
 .topbar[data-over="accent"]::after { background: rgba(255, 246, 236, .95); box-shadow: 0 16px 36px -16px rgba(107, 46, 71, .55), inset 0 0 0 1px rgba(255, 255, 255, .7); }
-/* прокрутили: шапка прилипает к верху во всю ширину, без скруглений; содержимое — по ширине контента (≤ 1240px).
-   Сверху учитываем вырез экрана iPhone. Вместо рамки — линия снизу и мягкая тень. */
-.topbar.is-compact {
-  top: 0; left: 0; right: 0; border-radius: 0;
-  padding: calc(8px + env(safe-area-inset-top, 0px)) max(var(--gutter), calc((100% - 1240px) / 2)) 8px;
-}
-.topbar.is-compact::before { box-shadow: 0 10px 28px -14px rgba(0, 0, 0, .55), inset 0 -1px 0 rgba(255, 246, 236, .1); }
-.topbar.is-compact::after { box-shadow: 0 10px 28px -14px rgba(0, 0, 0, .45), inset 0 -1px 0 rgba(42, 26, 20, .1); }
-.topbar.is-compact[data-over="accent"]::after { box-shadow: 0 10px 28px -12px rgba(107, 46, 71, .5), inset 0 -1px 0 rgba(201, 80, 90, .2); }
+/* прокрутили: капсула поднимается ближе к краю, чуть ниже ростом и с тенью заметнее — форма та же */
+.topbar.is-compact { top: 8px; padding: 8px 10px 8px 12px; }
+.topbar.is-compact::before { box-shadow: 0 18px 40px -16px rgba(0, 0, 0, .7), inset 0 0 0 1px rgba(255, 246, 236, .1); }
+.topbar.is-compact::after { box-shadow: 0 18px 40px -16px rgba(0, 0, 0, .55), inset 0 0 0 1px rgba(255, 246, 236, .6); }
+.topbar.is-compact[data-over="accent"]::after { box-shadow: 0 18px 40px -14px rgba(107, 46, 71, .6), inset 0 0 0 1px rgba(255, 255, 255, .7); }
 .brand { display: flex; align-items: center; gap: 10px; text-decoration: none; color: inherit; }
 .brand span:not(.brand__logo) { font: 700 30px/1 var(--hand); transition: font-size .45s var(--bar-ease); }
 .brand__logo { display: grid; width: 44px; height: 44px; transition: width .45s var(--bar-ease), height .45s var(--bar-ease); }
@@ -183,7 +178,7 @@ p { margin: 0; }
   border-radius: 22px; transition: background-color .45s ease, color .45s ease, top .45s var(--bar-ease);
 }
 .mnav[hidden] { display: none; }
-.topbar.is-compact + .mnav { top: calc(70px + env(safe-area-inset-top, 0px)); }
+.topbar.is-compact + .mnav { top: 78px; }
 .mnav a { padding: 14px 16px; text-decoration: none; font-size: 18px; border-radius: 12px; color: inherit; }
 .mnav a:hover { background: var(--bar-chip); }
 @media (prefers-reduced-motion: reduce) { .topbar, .topbar::before, .topbar::after, .mnav, .brand__logo, .brand__logo img { transition: none; } }
@@ -517,9 +512,9 @@ p { margin: 0; }
 @media (max-width: 720px) {
   body { font-size: 16px; }
   .topbar { top: 10px; left: 12px; right: 12px; gap: 10px; }
-  .topbar.is-compact { padding: calc(7px + env(safe-area-inset-top, 0px)) 12px 7px 14px; }
+  .topbar.is-compact { top: 6px; padding: 7px 8px 7px 10px; }
   .mnav { top: 76px; }
-  .topbar.is-compact + .mnav { top: calc(68px + env(safe-area-inset-top, 0px)); left: 12px; right: 12px; }
+  .topbar.is-compact + .mnav { top: 72px; }
   .topbar__phone { display: none; }
   .burger { display: block; }
   .hero__title { font-size: 56px; }
