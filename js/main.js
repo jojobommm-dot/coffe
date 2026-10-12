@@ -113,12 +113,16 @@
   var selected = -1;      // какая точка выбрана сейчас
   var MAP = window.FASTCUP_MAP;   // границы карты и сетка плиток, js/map-data.js
   var mapEl = document.getElementById("map");
-  var plane = document.getElementById("omap");          // слой с плитками и метками: его размер = масштаб
+  var plane = document.getElementById("omap");          // слой с плитками (двигает видеокарта через transform)
   var tileLayer = document.getElementById("omapTiles");
+  var markerLayer = document.getElementById("omapMarkers"); // метки отдельным слоем — не раздуваются при зуме
   var tiles = {};          // уже добавленные плитки
   var tilesLoaded = 0;
   var pins = [];
-  var scale = 0, posX = 0, posY = 0; // пикселей на единицу карты и сдвиг слоя
+  var markers = [];        // метки и «вы здесь»: { el, x, y } в единицах карты
+  var scale = 0, posX = 0, posY = 0; // пикселей на единицу карты и сдвиг карты
+  var baseScale = 0;       // в каком масштабе нарисованы плитки; меняем только после жеста — перерисовка дорогая
+  var frame = 0, anim = 0;
   var view = null;         // какие точки показали последний раз — чтобы перестроить при смене размера окна
   var userMoved = false;   // посетитель сам двигал карту — тогда при смене размера окна не прыгаем
   var MIN_SCALE = 0.45, MAX_SCALE = 3; // мельче не читаются подписи
@@ -142,7 +146,7 @@
     nearestNext.hidden = count < 2;
     pins.forEach(function (b, k) { b.firstChild.classList.toggle("is-selected", k === i); });
     // показать посетителя и точку вместе; без геолокации — просто подвинуть карту к точке
-    if (pins.length && pan) fit(me ? [me, p.coords] : [p.coords], !me);
+    if (pins.length && pan) fit(me ? [me, p.coords] : [p.coords], !me, true);
   }
   nearestNext.addEventListener("click", function () {
     var pos = order.indexOf(selected);
@@ -164,10 +168,11 @@
       (merc(MAP.north) - merc(c[0])) / (merc(MAP.north) - merc(MAP.south)) * MAP.height
     ];
   }
-  function putOnMap(el, c) {
+  function addMarker(el, c) {
     var xy = toXY(c);
-    el.style.left = xy[0] / MAP.width * 100 + "%";
-    el.style.top = xy[1] / MAP.height * 100 + "%";
+    markers.push({ el: el, x: xy[0], y: xy[1] });
+    markerLayer.appendChild(el);
+    render();
   }
 
   function panelMargin() {
@@ -179,16 +184,70 @@
 
   function minScale() { return Math.max(mapEl.clientWidth / MAP.width, mapEl.clientHeight / MAP.height); }
 
-  /* Применить масштаб и сдвиг: карта всегда закрывает весь блок, за границы города не уводится */
-  function apply() {
+  /* Карта всегда закрывает весь блок и не уводится за границы города */
+  function clampView() {
     var cw = mapEl.clientWidth, ch = mapEl.clientHeight;
     scale = Math.min(MAX_SCALE, Math.max(scale, minScale()));
     posX = Math.min(0, Math.max(cw - MAP.width * scale, posX));
     posY = Math.min(0, Math.max(ch - MAP.height * scale, posY));
+  }
+
+  /* Нарисовать текущее положение. Меняем только transform: слой с плитками сдвигает и масштабирует
+     видеокарта, сами SVG-плитки не перерисовываются — поэтому перетаскивание плавное. */
+  function render() {
+    frame = 0;
+    if (!scale) return; // блок карты ещё без размера
+    if (!baseScale) commitScale();
+    plane.style.transform = "translate3d(" + posX + "px," + posY + "px,0) scale(" + scale / baseScale + ")";
+    for (var i = 0; i < markers.length; i++) {
+      var m = markers[i];
+      m.el.style.transform = "translate3d(" + (posX + m.x * scale) + "px," + (posY + m.y * scale) + "px,0)";
+    }
+    loadTiles();
+  }
+
+  /* Перерисовать плитки в новом масштабе (чётко). Делаем один раз — после зума, а не на каждом кадре */
+  function commitScale() {
+    baseScale = scale;
     plane.style.width = MAP.width * scale + "px";
     plane.style.height = MAP.height * scale + "px";
-    plane.style.transform = "translate(" + posX + "px," + posY + "px)";
-    loadTiles();
+  }
+  function settle() { if (baseScale !== scale) { commitScale(); render(); } }
+
+  /* Обновить не чаще одного раза за кадр, сколько бы событий мыши ни пришло */
+  function update() {
+    clampView();
+    if (!frame) frame = requestAnimationFrame(render);
+  }
+
+  /* Плавный переход к масштабу s и сдвигу (x, y) */
+  function animateTo(s, x, y) {
+    cancelAnimationFrame(anim);
+    var s0 = scale, x0 = posX, y0 = posY, t0 = performance.now();
+    function step(now) {
+      var t = Math.min(1, (now - t0) / 450), e = 1 - Math.pow(1 - t, 3);
+      scale = s0 + (s - s0) * e; posX = x0 + (x - x0) * e; posY = y0 + (y - y0) * e;
+      clampView();
+      render();
+      if (t < 1) anim = requestAnimationFrame(step); else { anim = 0; settle(); }
+    }
+    anim = requestAnimationFrame(step);
+  }
+
+  /* Перейти к виду: с анимацией или сразу */
+  function goTo(s, x, y, animate) {
+    var s0 = scale, x0 = posX, y0 = posY;
+    scale = s; posX = x; posY = y;
+    clampView();
+    if (animate && baseScale) {
+      var ts = scale, tx = posX, ty = posY;
+      scale = s0; posX = x0; posY = y0;
+      animateTo(ts, tx, ty);
+    } else {
+      cancelAnimationFrame(anim);
+      commitScale();
+      render();
+    }
   }
 
   /* Подгрузить плитки, которые видны на экране (с запасом в полплитки вокруг) */
@@ -221,7 +280,7 @@
 
   /* Показать точки pts в свободной от панели части карты.
      keepScale — не менять масштаб, только сдвинуть. */
-  function fit(pts, keepScale) {
+  function fit(pts, keepScale, animate) {
     view = pts;
     userMoved = false;
     var cw = mapEl.clientWidth, ch = mapEl.clientHeight;
@@ -234,23 +293,19 @@
     var xs = xy.map(function (q) { return q[0]; }), ys = xy.map(function (q) { return q[1]; });
     var bx0 = Math.min.apply(null, xs), bx1 = Math.max.apply(null, xs);
     var by0 = Math.min.apply(null, ys), by1 = Math.max.apply(null, ys);
+    var s = scale;
     if (!(keepScale && scale)) {
-      scale = Math.min(2, (x1 - x0) / Math.max(bx1 - bx0, 1), (y1 - y0) / Math.max(by1 - by0, 1));
-      scale = Math.max(scale, MIN_SCALE, minScale());
+      s = Math.min(2, (x1 - x0) / Math.max(bx1 - bx0, 1), (y1 - y0) / Math.max(by1 - by0, 1));
+      s = Math.max(s, MIN_SCALE, minScale());
     }
-    posX = (x0 + x1) / 2 - (bx0 + bx1) / 2 * scale;
-    posY = (y0 + y1) / 2 - (by0 + by1) / 2 * scale;
-    apply();
+    goTo(s, (x0 + x1) / 2 - (bx0 + bx1) / 2 * s, (y0 + y1) / 2 - (by0 + by1) / 2 * s, animate);
   }
 
   /* Масштаб относительно точки (px, py) блока карты — она остаётся на месте */
   function zoomAt(newScale, px, py) {
     var s = Math.min(MAX_SCALE, Math.max(newScale, minScale()));
-    posX = px - (px - posX) * s / scale;
-    posY = py - (py - posY) * s / scale;
-    scale = s;
     userMoved = true;
-    apply();
+    goTo(s, px - (px - posX) * s / scale, py - (py - posY) * s / scale, true);
   }
 
   function initControls() {
@@ -258,6 +313,7 @@
     var drag = null, justDragged = false;
     mapEl.addEventListener("pointerdown", function (e) {
       if (e.pointerType === "touch" || e.button !== 0 || e.target.closest(".omap__zoom, .omap__attr")) return;
+      cancelAnimationFrame(anim);
       drag = { id: e.pointerId, x: e.clientX, y: e.clientY, px: posX, py: posY, moved: false };
     });
     mapEl.addEventListener("pointermove", function (e) {
@@ -271,7 +327,7 @@
       }
       posX = drag.px + dx; posY = drag.py + dy;
       userMoved = true;
-      apply();
+      update();
     });
     function stop() {
       if (drag && drag.moved) { justDragged = true; setTimeout(function () { justDragged = false; }, 0); }
@@ -293,6 +349,7 @@
     }
     mapEl.addEventListener("touchstart", function (e) {
       if (e.touches.length !== 2) return;
+      cancelAnimationFrame(anim);
       pinch = touchInfo(e);
       pinch.s = scale; pinch.px = posX; pinch.py = posY;
       mapEl.classList.add("is-dragging");
@@ -313,10 +370,10 @@
       posY = t.y - (pinch.y - pinch.py) * s / pinch.s;
       scale = s;
       userMoved = true;
-      apply();
+      update();
     }, { passive: false });
     mapEl.addEventListener("touchend", function (e) {
-      if (e.touches.length < 2 && pinch) { pinch = null; mapEl.classList.remove("is-dragging"); }
+      if (e.touches.length < 2 && pinch) { pinch = null; mapEl.classList.remove("is-dragging"); settle(); }
     });
 
     /* Кнопки «+» и «−»: масштаб вокруг середины свободной от панели части карты */
@@ -337,19 +394,17 @@
       b.title = p.title;
       b.setAttribute("aria-label", p.title + ", " + p.address);
       b.innerHTML = PIN_SVG;
-      putOnMap(b, p.coords);
       // клик по метке = выбрать эту точку в карточке слева
       b.addEventListener("click", function () { selectPoint(i, false); });
       pins.push(b);
-      plane.appendChild(b);
     });
     fit(count ? POINTS.map(function (p) { return p.coords; }) : [CFG.mapCenter || [58.0105, 56.2294]], false);
-    requestAnimationFrame(function () { requestAnimationFrame(function () { plane.classList.add("is-ready"); }); });
+    POINTS.forEach(function (p, i) { addMarker(pins[i], p.coords); });
     initControls();
     var resizeTimer;
     window.addEventListener("resize", function () {
       clearTimeout(resizeTimer);
-      resizeTimer = setTimeout(function () { if (userMoved) apply(); else { scale = 0; fit(view, false); } }, 150);
+      resizeTimer = setTimeout(function () { if (userMoved) goTo(scale, posX, posY, false); else fit(view, false); }, 150);
     });
 
     function noGeo(msg) {
@@ -368,10 +423,10 @@
         return;
       }
       var dot = document.createElement("div");
-      dot.className = "omap__me fc-me";
+      dot.className = "omap__me";
       dot.title = "Вы здесь";
-      putOnMap(dot, me);
-      plane.appendChild(dot);
+      dot.innerHTML = '<div class="fc-me"></div>';
+      addMarker(dot, me);
       selectPoint(order[0], true);
     }, function () {
       noGeo("Разрешите геопозицию, и мы найдём ближайший автомат");
@@ -381,7 +436,7 @@
   function mapFallback() {
     if (!plane.isConnected) return; // несколько плиток могут не загрузиться — сообщаем один раз
     plane.remove();
-    document.querySelectorAll(".omap__zoom, .omap__attr, .omap__hint").forEach(function (el) { el.remove(); });
+    document.querySelectorAll(".omap__markers, .omap__zoom, .omap__attr, .omap__hint").forEach(function (el) { el.remove(); });
     var fb = document.getElementById("mapFallback");
     fb.innerHTML = '<p>Карта не загрузилась.<br>Наши точки:</p>';
     var ul = document.createElement("ul");
