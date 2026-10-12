@@ -1,0 +1,52 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>Fastcup — кофе рядом</title>
+  <meta name="description" content="Ближайший кофейный автомат Fastcup в Перми и пеший маршрут до него. Работает без интернета.">
+  <meta name="theme-color" content="#1E120E">
+  <link rel="manifest" href="manifest.webmanifest">
+  <link rel="icon" href="../images/web/favicon.png">
+  <link rel="apple-touch-icon" href="icons/apple-180.png">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="Fastcup">
+  <link rel="stylesheet" href="../css/omap.css">
+  <link rel="stylesheet" href="app.css">
+</head>
+<body>
+  <!-- Приложение Fastcup: где я и пеший маршрут до ближайшего автомата. Всё работает без интернета:
+       карта — js/omap.js, маршрут — route-worker.js по графу data/walk-graph.bin, офлайн — sw.js -->
+  <div class="app__map" id="map" role="region" aria-label="Карта Перми с автоматами Fastcup"></div>
+
+  <header class="bar">
+    <a class="bar__brand" href="../" aria-label="Сайт Fastcup"><img src="../images/web/logo-light.png" alt="" width="34" height="34">Fastcup</a>
+    <button class="bar__install" id="install" type="button" hidden>Установить</button>
+  </header>
+  <p class="tip" id="installTip" hidden>Чтобы установить: нажмите «Поделиться» <span aria-hidden="true">⎋</span>, затем «На экран Домой».</p>
+
+  <button class="locate" id="locate" type="button" aria-label="Показать, где я">
+    <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="4"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3"/><circle cx="12" cy="12" r="8"/></svg>
+  </button>
+
+  <section class="sheet" id="sheet" aria-live="polite">
+    <p class="sheet__status" id="status">Загружаем карту…</p>
+    <div class="sheet__card" id="card" hidden>
+      <p class="sheet__kicker" id="kicker">Ближайший кофе</p>
+      <h1 class="sheet__title" id="title"></h1>
+      <p class="sheet__addr" id="addr"></p>
+      <p class="sheet__eta"><b id="dist"></b><span id="time"></span></p>
+      <div class="sheet__actions">
+        <button class="btn btn--sunset" id="show" type="button">Показать маршрут</button>
+        <button class="btn btn--ghost" id="next" type="button">Другая точка</button>
+      </div>
+    </div>
+  </section>
+
+  <script src="../js/points.js"></script>
+  <script src="../js/map-data.js"></script>
+  <script src="../js/omap.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>

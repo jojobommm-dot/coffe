@@ -15,15 +15,24 @@ index.html          вся страница (SEO-метатеги, JSON-LD schem
 css/style.css       стили; цвета и шрифты — переменные в :root в начале файла
 js/config.js        контакты, адрес формы заявок
 js/points.js        точки автоматов на карте (сейчас ПРИМЕРЫ адресов)
-js/main.js          карта (перетаскивание, масштаб, подгрузка плиток), геолокация, «Маршрут пешком», эффект зёрен, форма
+js/main.js          карта первого экрана (метки, ближайшая точка), геолокация, «Маршрут пешком», эффект зёрен, форма
+js/omap.js          движок офлайн-карты для сайта и приложения (перетаскивание, зум, плитки, метки, маршрут); стили — css/omap.css
 js/map-data.js      границы офлайн-карты — создаётся tools/build_map.py, руками не править
 js/beans-data.js    картинка зёрен в base64 (большой файл — не читай целиком без нужды)
 images/             исходники в полном размере — НЕ изменять и не удалять
 images/web/         сжатые версии для сайта — на странице используются только они
 images/web/map/     офлайн-карта Перми: картинки WebP {уровень}/{x}-{y}.webp — создаются tools/build_map.py, руками не править
+tools/build_routes.py  граф пеших дорог для app/: `python tools/build_routes.py --refresh` (нужен shapely)
 tools/build_map.py  рисует карту из OpenStreetMap: `python tools/build_map.py --refresh` (нужны shapely и playwright, рендерит Chrome)
+app/                приложение (PWA): index.html, app.js, app.css, route-worker.js (маршрут в фоне),
+                    sw.js (офлайн), manifest.webmanifest, icons/, data/walk-graph.bin (граф — руками не править)
 robots.txt, sitemap.xml
 ```
+
+## Приложение (app/)
+- Общие с сайтом файлы (points.js, map-data.js, omap.js, omap.css, картинки карты) подключаются через `../`.
+- Изменил что-то, что сохраняется на телефоне (карту, граф, файлы app/), — увеличь `VERSION` в `app/sw.js`.
+- Плавность проверяй замером кадров: у владельца слабая видеокарта.
 
 ## Как проверить сайт
 ```

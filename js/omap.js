@@ -393,4 +393,12 @@
       get userMoved() { return userMoved; }
     };
   };
+
+  /* значок метки-стаканчика (для элементов .omap__pin) */
+  window.FastcupMap.PIN =
+    '<svg class="fc-pin" viewBox="0 0 46 56" aria-hidden="true">' +
+    '<defs><linearGradient id="fcg" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#F8B867"/><stop offset=".5" stop-color="#EF8458"/><stop offset="1" stop-color="#C9505A"/></linearGradient></defs>' +
+    '<path d="M23 55C23 55 3 34 3 21a20 20 0 0 1 40 0c0 13-20 34-20 34z" fill="url(#fcg)" stroke="#fff" stroke-width="2.5"/>' +
+    '<path d="M15 14h16l-2 16h-12z" fill="#fff"/><rect x="13.5" y="11" width="19" height="3.5" rx="1.5" fill="#fff"/>' +
+    '<rect x="16.5" y="19" width="13" height="5" fill="#C9505A" opacity=".55"/></svg>';
 })();
