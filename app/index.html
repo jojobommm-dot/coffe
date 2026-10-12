@@ -42,8 +42,17 @@
         <button class="btn btn--ghost" id="next" type="button">Другая точка</button>
       </div>
     </div>
+    <!-- служебные кнопки: показываются, когда нужны -->
+    <div class="sheet__tools">
+      <button class="tool" id="undo" type="button" hidden><span aria-hidden="true">↶</span> Отмена</button>
+      <button class="tool" id="auto" type="button" hidden><span aria-hidden="true">◎</span> Определить автоматически</button>
+      <button class="tool" id="reload" type="button" hidden><span aria-hidden="true">↻</span> Перезагрузить</button>
+    </div>
+    <p class="sheet__help" id="help" hidden>Геопозиция запрещена для этого сайта. Разрешите её в настройках браузера
+      (значок замка рядом с адресом → «Геоданные» → «Разрешить»), затем нажмите «Определить автоматически».</p>
   </section>
 
+  <script src="../js/config.js"></script>
   <script src="../js/points.js"></script>
   <script src="../js/map-data.js"></script>
   <script src="../js/omap.js"></script>

@@ -12,7 +12,7 @@
    Использование:
      var map = FastcupMap(элемент, { data: window.FASTCUP_MAP, margin: fn, ... });
      map.fit([[широта, долгота], ...], keepScale, animate)
-     var m = map.addMarker(элемент, [широта, долгота]); map.moveMarker(m, [..]); map.removeMarker(m)
+     var m = map.addMarker(элемент, [широта, долгота], { draggable, onDrag, onDragEnd }); map.moveMarker(m, [..])
      map.setRoute([[x, y], ...] в единицах карты | null); map.setAccuracy([широта, долгота] | null, метры)
    ================================================================ */
 (function () {
@@ -276,7 +276,7 @@
     el.addEventListener("click", function (e) {
       // отпускание кнопки над меткой после перетаскивания не должно её выбирать
       if (justDragged) { e.stopPropagation(); e.preventDefault(); return; }
-      if (opts.onTap && !e.target.closest(".omap__zoom, .omap__attr, .omap__pin, button, a")) {
+      if (opts.onTap && !e.target.closest(".omap__zoom, .omap__attr, .omap__pin, .is-draggable, button, a")) {
         var r = el.getBoundingClientRect();
         opts.onTap(fromXY((e.clientX - r.left - posX) / scale, (e.clientY - r.top - posY) / scale));
       }
@@ -352,12 +352,53 @@
     });
 
     // ---- метки, маршрут, точность ----
-    function addMarker(node, c) {
+    function addMarker(node, c, o) {
       var xy = toXY(c), m = { el: node, x: xy[0], y: xy[1] };
       markers.push(m);
       markerLayer.appendChild(node);
+      if (o && o.draggable) makeDraggable(m, o);
       render();
       return m;
+    }
+
+    /* Метку можно перетащить пальцем или мышкой (карта при этом стоит на месте).
+       onDrag(координаты) — на ходу, onDragEnd(координаты) — когда отпустили. */
+    function makeDraggable(m, o) {
+      var d = null;
+      m.el.classList.add("is-draggable");
+      m.el.addEventListener("pointerdown", function (e) {
+        if (e.button !== 0) return;
+        e.stopPropagation();  // не двигать карту
+        e.preventDefault();
+        cancelAnimationFrame(anim);
+        var r = el.getBoundingClientRect();
+        // запоминаем, где на метке схватили, чтобы она не прыгала под палец
+        d = { id: e.pointerId, gx: posX + m.x * scale - (e.clientX - r.left), gy: posY + m.y * scale - (e.clientY - r.top),
+              x: e.clientX, y: e.clientY, moved: false };
+        m.el.setPointerCapture(e.pointerId);
+      });
+      m.el.addEventListener("pointermove", function (e) {
+        if (!d || e.pointerId !== d.id) return;
+        if (!d.moved) {
+          if (Math.abs(e.clientX - d.x) + Math.abs(e.clientY - d.y) < 4) return;
+          d.moved = true;
+          m.el.classList.add("is-dragging");
+        }
+        var r = el.getBoundingClientRect();
+        m.x = Math.max(0, Math.min(MAP.width, (e.clientX - r.left + d.gx - posX) / scale));
+        m.y = Math.max(0, Math.min(MAP.height, (e.clientY - r.top + d.gy - posY) / scale));
+        update();
+        if (o.onDrag) o.onDrag(fromXY(m.x, m.y));
+      });
+      function end(e) {
+        if (!d || e.pointerId !== d.id) return;
+        var moved = d.moved;
+        d = null;
+        m.el.classList.remove("is-dragging");
+        if (moved && o.onDragEnd) o.onDragEnd(fromXY(m.x, m.y));
+      }
+      m.el.addEventListener("pointerup", end);
+      m.el.addEventListener("pointercancel", end);
     }
     function moveMarker(m, c) { var xy = toXY(c); m.x = xy[0]; m.y = xy[1]; render(); }
     function removeMarker(m) { markers.splice(markers.indexOf(m), 1); m.el.remove(); }

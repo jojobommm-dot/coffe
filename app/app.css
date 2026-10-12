@@ -80,3 +80,30 @@ button:focus-visible, a:focus-visible { outline: 3px solid var(--apricot); outli
   .sheet { left: 16px; right: auto; bottom: 16px; width: 380px; border-radius: 24px; padding-bottom: 18px; }
   .locate { bottom: 24px; right: 16px; }
 }
+
+/* служебные кнопки и подсказка под карточкой */
+.sheet__tools { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 12px; }
+.sheet__tools:not(:has(.tool:not([hidden]))) { display: none; }
+.tool {
+  display: inline-flex; align-items: center; gap: 6px; min-height: 40px; padding: 8px 14px;
+  border: 0; border-radius: 999px; cursor: pointer; font: 600 14px/1.2 var(--sans);
+  color: var(--foam); background: rgba(255,246,236,.1);
+}
+.tool:hover { background: rgba(255,246,236,.18); }
+.tool span { font-size: 17px; line-height: 1; }
+.tool[hidden] { display: none; }
+.sheet__help { margin: 10px 0 0; padding: 10px 12px; border-radius: 12px; font-size: 14px; color: var(--ink); background: var(--foam); }
+
+/* метка «Я здесь»: точка GPS; без геопозиции — крупная метка с подписью, её перетаскивают */
+.me { width: 0; height: 0; }
+.me__hit { position: absolute; left: -26px; top: -26px; width: 52px; height: 52px; border-radius: 50%; }
+.me__label {
+  position: absolute; left: 0; bottom: 20px; transform: translateX(-50%); white-space: nowrap;
+  padding: 6px 11px; border-radius: 10px; font: 700 13px/1 var(--sans); color: #fff; background: #2563EB;
+  box-shadow: 0 6px 16px -6px rgba(30,18,14,.6); pointer-events: none; transition: transform .15s;
+}
+.me__label::after { content: ""; position: absolute; left: 50%; top: 100%; margin-left: -6px; border: 6px solid transparent; border-top-color: #2563EB; }
+.me:not(.is-manual):not(.is-dragging) .me__label { display: none; }
+.me.is-manual .fc-me { animation: none; width: 26px; height: 26px; transform: translate(-13px,-13px); background: #2563EB; }
+.me.is-dragging .me__label { transform: translate(-50%, -8px); }
+.me.is-dragging .fc-me { box-shadow: 0 10px 18px -4px rgba(30,18,14,.55); }

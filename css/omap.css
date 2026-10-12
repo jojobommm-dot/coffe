@@ -51,3 +51,7 @@
   .omap__tile, .fc-pin { transition: none; }
   .fc-me { animation: none; }
 }
+
+/* перетаскиваемая метка (например, «Я здесь» в приложении) */
+.is-draggable { pointer-events: auto; touch-action: none; cursor: grab; }
+.is-draggable.is-dragging { cursor: grabbing; z-index: 3; }

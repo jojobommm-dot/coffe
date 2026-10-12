@@ -10,13 +10,13 @@
 self.window = self;                  // js/map-data.js пишет в window, а здесь его нет
 importScripts("../js/map-data.js"); // FASTCUP_MAP: уровни и размеры картинок карты
 
-var VERSION = "1";
+var VERSION = "2";
 var CORE = "fastcup-app-" + VERSION;
 var TILES = "fastcup-tiles-" + VERSION;
 var FILES = [
   "./", "index.html", "app.css", "app.js", "route-worker.js", "manifest.webmanifest", "data/walk-graph.bin",
   "icons/icon-192.png", "icons/icon-512.png", "icons/maskable-512.png", "icons/apple-180.png",
-  "../js/points.js", "../js/map-data.js", "../js/omap.js", "../css/omap.css",
+  "../js/config.js", "../js/points.js", "../js/map-data.js", "../js/omap.js", "../css/omap.css",
   "../images/web/logo-light.png", "../images/web/favicon.png"
 ];
 
