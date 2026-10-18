@@ -5,4 +5,4 @@ User-agent: Yandex
 Allow: /
 Clean-param: utm_source&utm_medium&utm_campaign&utm_content&utm_term&yclid
 
-Sitemap: https://example.ru/sitemap.xml
+Sitemap: https://jojobommm-dot.github.io/coffe/sitemap.xml
